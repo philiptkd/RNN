@@ -1,6 +1,9 @@
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
+//TODO
+//in trainNet, put input activations into first layer of first RNN
+
 public class Network {
 	//////////////comments are from Network class in ConvNet project////////////////
 	
@@ -19,7 +22,12 @@ public class Network {
 	}
 	
 	public void trainNet(int epochs, int miniBatchSize, double learningRate) throws IOException {
-		
+		//do until end of input data
+			//for N times
+				//put next attentionSpan+1 worth of input data into inputActivations
+				//feed forward attentionSpan times
+				//backpropagate once
+			//update weights and biases
 	}
 	
 	public void testNet(int dataSet) throws IOException {
