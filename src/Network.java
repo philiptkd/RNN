@@ -8,6 +8,9 @@ public class Network {
 	//////////////comments are from Network class in ConvNet project////////////////
 	
 	//variables to hold numbers of images
+	private int numChars;
+	private RNN rnn;
+	
 	//arrays to hold images and labels
 	//strings of file names
 	//pointers to first and last layers
@@ -22,12 +25,25 @@ public class Network {
 	}
 	
 	public void trainNet(int epochs, int miniBatchSize, double learningRate) throws IOException {
-		//do until end of input data
-			//for N times
+		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
+			//for now, it just ignores the last few characters if miniBatchSize*attentionSpan doesn't divide evenly into numChars
+			for(int miniBatch=0; miniBatch<this.numChars/(this.rnn.attentionSpan*miniBatchSize); miniBatch++) { //for each miniBatch
 				//put next attentionSpan+1 worth of input data into inputActivations
-				//feed forward attentionSpan times
-				//backpropagate once
+				loadInputActivations(miniBatch);
+				
+				//feed forward
+				this.rnn.feedForward();
+				
+				//backpropagate
+				this.rnn.backPropagate();
+			}
 			//update weights and biases
+			this.rnn.updateWeightsAndBiases();
+		}
+	}
+	
+	private void loadInputActivations(int miniBatch) {
+		
 	}
 	
 	public void testNet(int dataSet) throws IOException {
