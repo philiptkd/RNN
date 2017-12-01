@@ -7,16 +7,16 @@ public class RNN {
 	
 	//activation functions used
 	private static int outputActFn = SIGMOID;
-	private static int hiddenActFn = RELU;
+	private static int hiddenActFn = SIGMOID;
 	
 	//input activations for each time step
-	private double[][] inputActivations;
+	public double[][] inputActivations;
 	
 	//hidden and output deltas and activations for each time step
 	private double[][] hiddenDeltas;
-	private double[][] hiddenActivations;
+	public double[][] hiddenActivations;
 	private double[][] outputDeltas;
-	private double[][] outputActivations;
+	public double[][] outputActivations;
 	
 	//biases are constant over each set of time steps
 	private double[] hiddenBiases;
@@ -28,18 +28,18 @@ public class RNN {
 	private double[][] Whh; //weights between hidden layer and itself in the next time step
 	
 	//running sums of bias gradients
-	private double[] hiddenBiasGrad;
-	private double[] outputBiasGrad;
+	public double[] hiddenBiasGrad;
+	public double[] outputBiasGrad;
 	
 	//running sums of weights gradients
-	private double[][] whiGrad;
-	private double[][] wohGrad;
-	private double[][] whhGrad;
+	public double[][] whiGrad;
+	public double[][] wohGrad;
+	public double[][] whhGrad;
 	
 	//constructor parameters
 	public int inputLength;
-	private int hiddenLength;
-	private int outputLength;
+	public int hiddenLength;
+	public int outputLength;
 	public int attentionSpan;
 	
 	//random number generator
@@ -107,47 +107,51 @@ public class RNN {
 	//assumes inputs for all time steps are already loaded into inputActivations
 	public void feedForward() {
 		for(int t=0; t<this.attentionSpan; t++) {
-			//calculate hidden activations
-			for(int k=0; k<this.hiddenLength; k++) {	//for each node in hidden layer
-				double tmpZ = 0;
-				
-				//contribution from input layer
-				for(int i=0; i<this.inputLength; i++) {
-					tmpZ += this.inputActivations[t][i]*this.Whi[k][i];
-				}
-				
-				//contribution from previous hidden layer
-				if(t > 0) {
-					for(int kp=0; kp<this.hiddenLength; kp++) {
-						tmpZ += this.hiddenActivations[t-1][kp]*this.Whh[k][kp];
-					}
-				}
-				
-				//add bias
-				tmpZ += this.hiddenBiases[k];
-				
-				//pass through activation function
-				this.hiddenActivations[t][k] = hiddenActFn(tmpZ);
-			}
-			
-			//calculate output activations
-			for(int j=0; j<this.outputLength; j++) {
-				double tmpZ = 0;
-				
-				//weighted sum from hidden layer
-				for(int k=0; k<this.hiddenLength; k++) {
-					tmpZ += this.hiddenActivations[t][k]*this.Woh[j][k];
-				}
-				
-				//add bias
-				tmpZ += this.outputBiases[j];
-				
-				//pass through activation function
-				this.outputActivations[t][j] = outputActFn(tmpZ);
-			}
+			feedForwardOnce(t);
 		}
 	}
 	
+	public void feedForwardOnce(int t) {
+		//calculate hidden activations
+		for(int k=0; k<this.hiddenLength; k++) {	//for each node in hidden layer
+			double tmpZ = 0;
+			
+			//contribution from input layer
+			for(int i=0; i<this.inputLength; i++) {
+				tmpZ += this.inputActivations[t][i]*this.Whi[k][i];
+			}
+			
+			//contribution from previous hidden layer
+			if(t > 0) {
+				for(int kp=0; kp<this.hiddenLength; kp++) {
+					tmpZ += this.hiddenActivations[t-1][kp]*this.Whh[k][kp];
+				}
+			}
+			
+			//add bias
+			tmpZ += this.hiddenBiases[k];
+			
+			//pass through activation function
+			this.hiddenActivations[t][k] = hiddenActFn(tmpZ);
+		}
+		
+		//calculate output activations
+		for(int j=0; j<this.outputLength; j++) {
+			double tmpZ = 0;
+			
+			//weighted sum from hidden layer
+			for(int k=0; k<this.hiddenLength; k++) {
+				tmpZ += this.hiddenActivations[t][k]*this.Woh[j][k];
+			}
+			
+			//add bias
+			tmpZ += this.outputBiases[j];
+			
+			//pass through activation function
+			this.outputActivations[t][j] = outputActFn(tmpZ);
+		}
+	}
+
 	//calculates errors and gradients for each time step
 	//uses a mean squared error cost function
 	public void backPropagate() {
@@ -222,8 +226,38 @@ public class RNN {
 		}
 	}
 	
-	public void updateWeightsAndBiases() {
+	public void updateWeightsAndBiases(int miniBatchSize, double learningRate) {
+		//woh
+		for(int j=0; j<this.outputLength; j++) {
+			for(int k=0; k<this.hiddenLength; k++) {
+				this.Woh[j][k] = this.Woh[j][k] - learningRate*this.wohGrad[j][k]/(miniBatchSize*this.attentionSpan);
+			}
+		}
 		
+		//whi
+		for(int k=0; k<this.hiddenLength; k++) {
+			for(int i=0; i<this.inputLength; i++) {
+				this.Whi[k][i] = this.Whi[k][i] - learningRate*this.whiGrad[k][i]/(miniBatchSize*this.attentionSpan);
+			}
+		}
+		
+		//whh
+		//whhGrad is incremented 1 fewer time than the others for each miniBatch
+		for(int kp=0; kp<this.hiddenLength; kp++) {
+			for(int k=0; k<this.hiddenLength; k++) {
+				this.Whh[kp][k] = this.Whh[kp][k] - learningRate*this.whhGrad[kp][k]/(miniBatchSize*(this.attentionSpan - 1));
+			}
+		}
+		
+		//output biases
+		for(int j=0; j<this.outputLength; j++) {
+			this.outputBiases[j] = this.outputBiases[j] - learningRate*this.outputBiasGrad[j]/(miniBatchSize*this.attentionSpan);
+		}
+		
+		//hidden biases
+		for(int k=0; k<this.hiddenLength; k++) {
+			this.hiddenBiases[k] = this.hiddenBiases[k] - learningRate*this.hiddenBiasGrad[k]/(miniBatchSize*this.attentionSpan);
+		}
 	}
 	
 	private double outputActFn(double z) {
