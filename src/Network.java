@@ -29,21 +29,22 @@ public class Network {
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
 			//for now, it just ignores the last few characters if miniBatchSize*attentionSpan doesn't divide evenly into numChars
 			for(int miniBatch=0; miniBatch<this.numBytes/(this.rnn.attentionSpan*miniBatchSize); miniBatch++) { //for each miniBatch
-				//put next attentionSpan+1 worth of input data into inputActivations
-				loadInputActivations(miniBatch, miniBatchSize);
+				for(int span=0; span<miniBatchSize; span++) {	//for each attentionSpan of data in this miniBatch
+					//put next attentionSpan+1 worth of input data into inputActivations
+					loadInputActivations(miniBatch, miniBatchSize, span);
+					
+					//feed forward
+					this.rnn.feedForward();
+					
+					//backpropagate
+					this.rnn.backPropagate();
+				}
+				//update weights and biases after every miniBatch
+				this.rnn.updateWeightsAndBiases(miniBatchSize, learningRate);
 				
-				//feed forward
-				this.rnn.feedForward();
-				
-				//backpropagate
-				this.rnn.backPropagate();
+				//set all the gradients back to zero
+				this.resetGradients();
 			}
-			
-			//update weights and biases
-			this.rnn.updateWeightsAndBiases(miniBatchSize, learningRate);
-			
-			//set all the gradients back to zero
-			this.resetGradients();
 		}
 	}
 	
@@ -55,13 +56,13 @@ public class Network {
 		this.zeroArray(this.rnn.whhGrad);
 	}
 	
-	private void loadInputActivations(int miniBatch, int miniBatchSize) {
+	private void loadInputActivations(int miniBatch, int miniBatchSize, int span) {
 		//zero input activations
 		zeroArray(this.rnn.inputActivations);
 		
 		//set one-hot vectors
 		for(int i=0; i<this.rnn.attentionSpan + 1; i++) {
-			byte thisChar = this.fullText[this.rnn.attentionSpan*miniBatchSize + i];
+			byte thisChar = this.fullText[this.rnn.attentionSpan*(miniBatchSize*miniBatch + span) + i];
 			this.rnn.inputActivations[i][thisChar] = 1;
 		}
 	}
