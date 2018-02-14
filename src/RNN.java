@@ -19,13 +19,13 @@ public class RNN {
 	public double[][] outputActivations;
 	
 	//biases are constant over each set of time steps
-	private double[] hiddenBiases;
-	private double[] outputBiases;
+	public double[] hiddenBiases;
+	public double[] outputBiases;
 	
 	//weight matrices are constant over each set of time steps
-	private double[][] Whi;	//weights between input and hidden layers
-	private double[][] Woh; //weights between hidden and output layers
-	private double[][] Whh; //weights between hidden layer and itself in the next time step
+	public double[][] Whi;	//weights between input and hidden layers
+	public double[][] Woh; //weights between hidden and output layers
+	public double[][] Whh; //weights between hidden layer and itself in the next time step
 	
 	//running sums of bias gradients
 	public double[] hiddenBiasGrad;
@@ -183,7 +183,7 @@ public class RNN {
 				}
 				
 				//multiply by derivative of activation function
-				this.hiddenActivations[t][k] *= actFnPrime(this.hiddenActivations[t][k], RNN.hiddenActFn);
+				this.hiddenDeltas[t][k] *= actFnPrime(this.hiddenActivations[t][k], RNN.hiddenActFn);
 			}
 		}
 			

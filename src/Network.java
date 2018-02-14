@@ -9,17 +9,18 @@ import org.apache.commons.io.FileUtils;
 
 public class Network {	
 	//variables to hold numbers of images
-	private int numBytes = 0;
+	public int numBytes = 0;
 	private RNN rnn;
-	private byte[] fullText;
+	public byte[] fullText;
 	private static final String fileName = "smallFrankenstein.txt";
 	
-	public Network(RNN rnn) throws IOException {
+	public Network(RNN rnn, boolean loadData) throws IOException {
 		//save input RNN
 		this.rnn = rnn;
 		
 		//load data
-		this.loadData();
+		if(loadData)
+			this.loadData();
 		
 		//write back for testing purposes
 		//FileUtils.writeByteArrayToFile(new File("testOut.txt"), this.fullText);
