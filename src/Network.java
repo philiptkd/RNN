@@ -5,19 +5,22 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.apache.commons.io.FileUtils;
 
 public class Network {	
 	//variables to hold numbers of images
 	public int numBytes = 0;
-	private RNN rnn;
-	public byte[] fullText;
+	public RNN rnn;
+	public char[] fullText;
+	public char[] vocab;
+	public HashMap<Character, Integer> charToIndex;
 	private static final String fileName = "smallFrankenstein.txt";
 	
-	public Network(RNN rnn, boolean loadData) throws IOException {
-		//save input RNN
-		this.rnn = rnn;
-		
+	public Network(boolean loadData) throws IOException {
 		//load data
 		if(loadData)
 			this.loadData();
@@ -29,6 +32,7 @@ public class Network {
 	public void trainNet(int epochs, int miniBatchSize, double learningRate) throws IOException {
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
 			//for now, it just ignores the last few characters if miniBatchSize*attentionSpan doesn't divide evenly into numChars
+			System.out.println("epoch: " + epoch);
 			for(int miniBatch=0; miniBatch<this.numBytes/(this.rnn.attentionSpan*miniBatchSize); miniBatch++) { //for each miniBatch
 				for(int span=0; span<miniBatchSize; span++) {	//for each attentionSpan of data in this miniBatch
 					//put next attentionSpan+1 worth of input data into inputActivations
@@ -63,8 +67,9 @@ public class Network {
 		
 		//set one-hot vectors
 		for(int i=0; i<this.rnn.attentionSpan + 1; i++) {
-			byte thisChar = this.fullText[this.rnn.attentionSpan*(miniBatchSize*miniBatch + span) + i];
-			this.rnn.inputActivations[i][thisChar] = 1;
+			char thisChar = this.fullText[this.rnn.attentionSpan*(miniBatchSize*miniBatch + span) + i];
+			int thisIndex = charToIndex.get(thisChar);
+			this.rnn.inputActivations[i][thisIndex] = 1;
 		}
 	}
 	
@@ -125,6 +130,11 @@ public class Network {
 		}
 		//write byte array
 		FileUtils.writeByteArrayToFile(new File("testOut.txt"), outputBytes);
+		
+		//print to console
+		for(int i=0; i<outputBytes.length; i++) {
+			System.out.print((char)outputBytes[i]);
+		}
 	}
 	
 	//grabbed from https://www.caveofprogramming.com/java/java-file-reading-and-writing-files-in-java.html#readtext
@@ -162,9 +172,30 @@ public class Network {
         }
         
         if(fullText != null) {
-        	this.fullText = fullText.getBytes(StandardCharsets.US_ASCII); // Java 7+ only
+        	this.vocab = getVocabulary(fullText);	//gets list of unique characters
+        	this.fullText = fullText.toCharArray();
         	this.numBytes = this.fullText.length;
+        	
+        	for(int i=0; i<this.vocab.length; i++) {	//creates map from character to index in vocab
+        		this.charToIndex.put(this.vocab[i], i);
+        	}
         }
+	}
+	
+	//returns a char[] of all the unique characters in the input string
+	//taken from https://stackoverflow.com/questions/4989091/removing-duplicates-from-a-string-in-java
+	private char[] getVocabulary(String string) {
+		char[] chars = string.toCharArray();
+		Set<Character> charSet = new LinkedHashSet<Character>();
+		for (char c : chars) {
+		    charSet.add(c);
+		}
+
+		StringBuilder sb = new StringBuilder();
+		for (Character character : charSet) {
+		    sb.append(character);
+		}
+		return sb.toString().toCharArray();
 	}
 	
 	public void writeToFile() {

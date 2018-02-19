@@ -6,26 +6,26 @@ public class Main {
 
 	public static void main(String[] args) {
 		try {
-			RNN rnn = new RNN(128, 3*128, 128, 20);	//inputLength, hiddenLength, outputLength, attentionSpan
+			Network net = new Network(true);
+			RNN rnn = new RNN(net.vocab.length, 100, net.vocab.length, 25);	//inputLength, hiddenLength, outputLength, attentionSpan
+			net.rnn = rnn;
+			
 			//RNN rnn = new RNN(2,3,2,2);
 			//setToyWeights(rnn);
-			Network net = new Network(rnn, true);
 			//Network net = new Network(rnn, false);
 			//loadToyInput(net);
-			net.trainNet(1, 1, 3.0);	//epochs, miniBatchSize, learningRate
+			
+			net.trainNet(10, 1, 0.1);	//epochs, miniBatchSize, learningRate
 			net.generate('A', 500);		//seed, len
 		} catch (LayerException e) {
 			System.out.println(e.getMessage());
 		} catch (IOException e) {
 			System.out.println(e.getMessage());
 		}
-		
-		
-		
 	}
 	
 	public static void loadToyInput(Network net) {
-		byte[] fullText = {1,0,1,0,1};
+		char[] fullText = {1,0,1,0,1};
 		net.fullText = fullText;
 		net.numBytes = fullText.length;
 	}
