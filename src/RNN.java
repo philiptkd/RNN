@@ -1,3 +1,4 @@
+import java.util.HashMap;
 import java.util.Random;
 
 public class RNN {
@@ -109,29 +110,34 @@ public class RNN {
 			this.outputBiases[i] = 0;//RNN.rand.nextGaussian();
 		}
 		
-		//initialize weights to have acceptable variance
-		for(int j=0; j<outputLength; j++) {
-			for(int k=0; k<hiddenLength; k++) {
-				this.Woh[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(outputLength*hiddenLength);
-			}
-		}
-		for(int j=0; j<hiddenLength; j++) {
-			for(int k=0; k<inputLength; k++) {
-				this.Whi[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(hiddenLength*inputLength);
-			}
-		}
-		for(int j=0; j<hiddenLength; j++) {
-			for(int k=0; k<hiddenLength; k++) {
-				this.Whh[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(hiddenLength*hiddenLength);
-			}
-		}
+		Woh = CsvParser.parse("Why.csv", Woh.length, Woh[0].length);
+		Whh = CsvParser.parse("Whh.csv", Whh.length, Whh[0].length);
+		Whi = CsvParser.parse("Wxh.csv", Whi.length, Whi[0].length);
+		
+//		//initialize weights to have acceptable variance
+//		for(int j=0; j<outputLength; j++) {
+//			for(int k=0; k<hiddenLength; k++) {
+//				this.Woh[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(outputLength*hiddenLength);
+//			}
+//		}
+//		for(int j=0; j<hiddenLength; j++) {
+//			for(int k=0; k<inputLength; k++) {
+//				this.Whi[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(hiddenLength*inputLength);
+//			}
+//		}
+//		for(int j=0; j<hiddenLength; j++) {
+//			for(int k=0; k<hiddenLength; k++) {
+//				this.Whh[j][k] = RNN.rand.nextGaussian()*0.01;///Math.sqrt(hiddenLength*hiddenLength);
+//			}
+//		}
 	}
 	
 	//calculates and stores all activations
 	//assumes inputs for all time steps are already loaded into inputActivations
-	public double feedForward(int labelIndex) {
+	public double feedForward(HashMap<Character,Integer> charToIndex, char[] fullText, int position) {
 		double loss = 0;
 		for(int t=0; t<this.attentionSpan; t++) {	//for each timestep
+			int labelIndex = charToIndex.get(fullText[position+t+1]);
 			
 			//calculate hidden activations
 			for(int k=0; k<this.hiddenLength; k++) {	//for each node in hidden layer
@@ -219,8 +225,9 @@ public class RNN {
 				this.dh[k] = 0;
 				
 				for(int j=0; j<this.outputLength; j++) {
-					this.dh[k] += this.dy[j]*this.Woh[j][k] + dhnext[k];
+					this.dh[k] += this.dy[j]*this.Woh[j][k];
 				}
+				this.dh[k] += dhnext[k];
 			}
 			
 			//calculate dhraw. backpropagation through tanh 

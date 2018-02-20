@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Random;
@@ -36,7 +37,7 @@ public class Network {
 		loadInputActivations(position);
 		
 		//feed forward
-		double loss = this.rnn.feedForward(this.charToIndex.get(this.fullText[position+1]));
+		double loss = this.rnn.feedForward(this.charToIndex, this.fullText, position);
 		
 		//set all the gradients back to zero
 		this.resetGradients();
@@ -195,6 +196,8 @@ public class Network {
         }
         
         if(fullText != null) {        	
+        	fullText = fullText.trim();
+        	fullText = fullText.replace("\r", "");
         	this.vocab = getVocabulary(fullText);	//gets list of unique characters
         	this.fullText = fullText.toCharArray();
         	this.numBytes = this.fullText.length;
@@ -218,7 +221,9 @@ public class Network {
 		for (Character character : charSet) {
 			sb.append(character);
 		}
-		return sb.toString().toCharArray();
+		chars = sb.toString().toCharArray();
+		Arrays.sort(chars);
+		return chars;
 	}
 	
 	public void writeToFile() {
