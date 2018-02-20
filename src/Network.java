@@ -7,6 +7,7 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
@@ -17,8 +18,9 @@ public class Network {
 	public RNN rnn;
 	public char[] fullText;
 	public char[] vocab;
-	public HashMap<Character, Integer> charToIndex;
+	public HashMap<Character, Integer> charToIndex = new HashMap<Character, Integer>();
 	private static final String fileName = "smallFrankenstein.txt";
+	private static Random rand = new Random();
 	
 	public Network(boolean loadData) throws IOException {
 		//load data
@@ -43,13 +45,23 @@ public class Network {
 					
 					//backpropagate
 					this.rnn.backPropagate();
+					
+					//save hPrev
+					for(int k=0; k<this.rnn.hiddenLength; k++) {
+						this.rnn.hPrev[k] = this.rnn.hiddenActivations[this.rnn.attentionSpan-1][k];
+					}
 				}
+				//clip gradients
+				this.rnn.clipGradients(5);
+				
 				//update weights and biases after every miniBatch
 				this.rnn.updateWeightsAndBiases(miniBatchSize, learningRate);
 				
 				//set all the gradients back to zero
 				this.resetGradients();
 			}
+			//reset hPrev
+			this.zeroArray(this.rnn.hPrev);
 		}
 	}
 	
@@ -87,53 +99,67 @@ public class Network {
 		}
 	}
 
-	public void generate(char seed, int len) throws IOException {
-		//create output byte array
-		byte[] outputBytes = new byte[len];
+	public void sample(char seed, int len) {
+		double[] x = new double[this.rnn.inputLength];
+		double[] hPrev = new double[this.rnn.hiddenLength];
 		
-		//load seed
-		this.zeroArray(this.rnn.inputActivations[0]);
-		this.rnn.inputActivations[0][(byte)seed] = 1;
+		//first input
+		int index = this.charToIndex.get(seed);
+		x[index] = 1;
 		
-		//generate len bytes
-		for(int i=0; i<len; i++) {
-			int layer;
-			if(i == 0)
-				layer = 0;
-			else
-				layer = 1;
-			
-			//feed forward once
-			this.rnn.feedForwardOnce(layer);
-			
-			//get output byte and put in array
-			byte classification = 0;
-			double highest = Double.MIN_VALUE;
-			for(int j=0; j<this.rnn.outputLength; j++) {
-				if(this.rnn.outputActivations[layer][j] > highest) {
-					highest = this.rnn.outputActivations[layer][j];
-					classification = (byte)j;
-				}
-			}
-			outputBytes[i] = classification;
-			
-			//load one-hot version of output as next input
-			this.zeroArray(this.rnn.inputActivations[1]);
-			this.rnn.inputActivations[1][classification] = 1;
-			
-			//move hidden activations
-			if(layer == 1) {
-				for(int k=0; k<this.rnn.hiddenLength; k++) {
-					this.rnn.hiddenActivations[0][k] = this.rnn.hiddenActivations[1][k];
-				}
-			}
+		//initialize hPrev
+		for(int k=0; k<this.rnn.hiddenLength; k++) {
+			hPrev[k] = this.rnn.hPrev[k];
 		}
-		//write byte array
-		FileUtils.writeByteArrayToFile(new File("testOut.txt"), outputBytes);
 		
-		//print to console
-		for(int i=0; i<outputBytes.length; i++) {
-			System.out.print((char)outputBytes[i]);
+		for(int t=0; t<len; t++) {
+			double[] h = new double[this.rnn.hiddenLength];
+			double[] y = new double[this.rnn.outputLength];
+			
+			//feed forward
+			for(int k=0; k<this.rnn.hiddenLength; k++) {	//hidden activations
+				for(int i=0; i<this.rnn.inputLength; i++) {
+					h[k] += this.rnn.Whi[k][i]*x[i];
+				}
+				for(int i=0; i<this.rnn.hiddenLength; i++) {
+					h[k] += this.rnn.Whh[k][i]*hPrev[i];
+				}
+				h[k] += this.rnn.hiddenBiases[k];
+				h[k] = Math.tanh(h[k]);
+			}
+			double sumExp = 0;
+			for(int j=0; j<this.rnn.outputLength; j++) {	//output activations
+				for(int k=0; k<this.rnn.hiddenLength; k++) {
+					y[j] += this.rnn.Woh[j][k]*h[k];
+				}
+				y[j] += this.rnn.outputBiases[j];
+				y[j] = Math.exp(y[j]);
+				sumExp += y[j];
+			}
+			for(int j=0; j<this.rnn.outputLength; j++) {
+				y[j] /= sumExp;
+			}
+			
+			//randomly sample 
+			double sample = Network.rand.nextDouble();
+			double sum = 0;
+			for(int j=0; j<this.rnn.outputLength; j++) {
+				sum += y[j];
+				if(sum > sample) {
+					index = j;
+					break;
+				}
+			}
+			
+			//print and set new input
+			System.out.print(this.vocab[index]);
+			this.zeroArray(x);
+			x[index] = 1;
+			
+			//set new hPrev
+			for(int k=0; k<this.rnn.hiddenLength; k++) {
+				hPrev[k] = h[k];
+			}
 		}
 	}
 	

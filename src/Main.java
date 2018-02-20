@@ -14,9 +14,10 @@ public class Main {
 			//setToyWeights(rnn);
 			//Network net = new Network(rnn, false);
 			//loadToyInput(net);
-			
-			net.trainNet(10, 1, 0.1);	//epochs, miniBatchSize, learningRate
-			net.generate('A', 500);		//seed, len
+			while(true) {
+				net.trainNet(1, 1, 0.1);	//epochs, miniBatchSize, learningRate
+				net.sample(net.fullText[2], 200);		//seed, len
+			}
 		} catch (LayerException e) {
 			System.out.println(e.getMessage());
 		} catch (IOException e) {
