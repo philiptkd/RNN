@@ -31,38 +31,34 @@ public class Network {
 		//FileUtils.writeByteArrayToFile(new File("testOut.txt"), this.fullText);
 	}
 	
-	public void trainNet(int epochs, int miniBatchSize, double learningRate) throws IOException {
-		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
-			//for now, it just ignores the last few characters if miniBatchSize*attentionSpan doesn't divide evenly into numChars
-			System.out.println("epoch: " + epoch);
-			for(int miniBatch=0; miniBatch<this.numBytes/(this.rnn.attentionSpan*miniBatchSize); miniBatch++) { //for each miniBatch
-				for(int span=0; span<miniBatchSize; span++) {	//for each attentionSpan of data in this miniBatch
-					//put next attentionSpan+1 worth of input data into inputActivations
-					loadInputActivations(miniBatch, miniBatchSize, span);
-					
-					//feed forward
-					this.rnn.feedForward();
-					
-					//backpropagate
-					this.rnn.backPropagate();
-					
-					//save hPrev
-					for(int k=0; k<this.rnn.hiddenLength; k++) {
-						this.rnn.hPrev[k] = this.rnn.hiddenActivations[this.rnn.attentionSpan-1][k];
-					}
-				}
-				//clip gradients
-				this.rnn.clipGradients(5);
-				
-				//update weights and biases after every miniBatch
-				this.rnn.updateWeightsAndBiases(miniBatchSize, learningRate);
-				
-				//set all the gradients back to zero
-				this.resetGradients();
-			}
-			//reset hPrev
-			this.zeroArray(this.rnn.hPrev);
+	public double trainNet(int position, double learningRate) throws IOException {
+		//load input
+		loadInputActivations(position);
+		
+		//feed forward
+		double loss = this.rnn.feedForward(this.charToIndex.get(this.fullText[position+1]));
+		
+		//set all the gradients back to zero
+		this.resetGradients();
+		
+		//reset dhnext
+		this.zeroArray(this.rnn.dhnext);
+		
+		//backpropagate
+		this.rnn.backPropagate();
+		
+		//save hPrev
+		for(int k=0; k<this.rnn.hiddenLength; k++) {
+			this.rnn.hPrev[k] = this.rnn.hiddenActivations[this.rnn.attentionSpan-1][k];
 		}
+	
+		//clip gradients
+		this.rnn.clipGradients(5);
+		
+		//update weights and biases
+		this.rnn.updateWeightsAndBiases(learningRate);
+		
+		return loss;
 	}
 	
 	private void resetGradients() {
@@ -73,19 +69,19 @@ public class Network {
 		this.zeroArray(this.rnn.whhGrad);
 	}
 	
-	private void loadInputActivations(int miniBatch, int miniBatchSize, int span) {
+	private void loadInputActivations(int position) {
 		//zero input activations
 		zeroArray(this.rnn.inputActivations);
 		
 		//set one-hot vectors
 		for(int i=0; i<this.rnn.attentionSpan + 1; i++) {
-			char thisChar = this.fullText[this.rnn.attentionSpan*(miniBatchSize*miniBatch + span) + i];
+			char thisChar = this.fullText[position + i];
 			int thisIndex = charToIndex.get(thisChar);
 			this.rnn.inputActivations[i][thisIndex] = 1;
 		}
 	}
 	
-	private void zeroArray(double[][] arr) {
+	public void zeroArray(double[][] arr) {
 		for(int i=0; i<arr.length; i++) {
 			for(int j=0; j<arr[0].length; j++) {
 				arr[i][j] = 0;
@@ -93,7 +89,7 @@ public class Network {
 		}
 	}
 	
-	private void zeroArray(double[] arr) {
+	public void zeroArray(double[] arr) {
 		for(int i=0; i<arr.length; i++) {
 			arr[i] = 0;
 		}
@@ -161,6 +157,7 @@ public class Network {
 				hPrev[k] = h[k];
 			}
 		}
+		System.out.println("");
 	}
 	
 	//grabbed from https://www.caveofprogramming.com/java/java-file-reading-and-writing-files-in-java.html#readtext
@@ -197,7 +194,7 @@ public class Network {
                 + fileName + "'");                  
         }
         
-        if(fullText != null) {
+        if(fullText != null) {        	
         	this.vocab = getVocabulary(fullText);	//gets list of unique characters
         	this.fullText = fullText.toCharArray();
         	this.numBytes = this.fullText.length;
@@ -219,7 +216,7 @@ public class Network {
 
 		StringBuilder sb = new StringBuilder();
 		for (Character character : charSet) {
-		    sb.append(character);
+			sb.append(character);
 		}
 		return sb.toString().toCharArray();
 	}

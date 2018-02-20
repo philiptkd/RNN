@@ -23,7 +23,7 @@ public class RNN {
 	private double[] dy;
 	private double[] dh;
 	private double[] dhraw;
-	private double[] dhnext;
+	public double[] dhnext;
 	
 	//biases are constant over each set of time steps
 	public double[] hiddenBiases;
@@ -129,7 +129,8 @@ public class RNN {
 	
 	//calculates and stores all activations
 	//assumes inputs for all time steps are already loaded into inputActivations
-	public void feedForward() {
+	public double feedForward(int labelIndex) {
+		double loss = 0;
 		for(int t=0; t<this.attentionSpan; t++) {	//for each timestep
 			
 			//calculate hidden activations
@@ -184,7 +185,10 @@ public class RNN {
 					this.outputActivations[t][j] /= sumExp;
 				}
 			}
+			
+			loss += -Math.log(this.outputActivations[t][labelIndex]);
 		}
+		return loss;
 	}
 
 	//calculates errors and gradients for each time step
@@ -328,7 +332,7 @@ public class RNN {
 	}
 	
 	//uses adagrad
-	public void updateWeightsAndBiases(int miniBatchSize, double learningRate) {
+	public void updateWeightsAndBiases(double learningRate) {
 		//output biases
 		for(int j=0; j<this.outputLength; j++) {
 			this.mbo[j] += this.outputBiasGrad[j]*this.outputBiasGrad[j];

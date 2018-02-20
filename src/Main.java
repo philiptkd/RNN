@@ -10,13 +10,26 @@ public class Main {
 			RNN rnn = new RNN(net.vocab.length, 100, net.vocab.length, 25);	//inputLength, hiddenLength, outputLength, attentionSpan
 			net.rnn = rnn;
 			
-			//RNN rnn = new RNN(2,3,2,2);
-			//setToyWeights(rnn);
-			//Network net = new Network(rnn, false);
-			//loadToyInput(net);
+			int position = 0;
+			int n = 0;
+			double smooth_loss = -Math.log(1.0/net.vocab.length)*rnn.attentionSpan;
+			
 			while(true) {
-				net.trainNet(1, 1, 0.1);	//epochs, miniBatchSize, learningRate
-				net.sample(net.fullText[2], 200);		//seed, len
+				if(position + rnn.attentionSpan + 1 >= net.fullText.length) {
+					net.zeroArray(rnn.hPrev);	//reset hPrev
+					position = 0;
+				}
+				
+				if(n%1000 == 0) 
+					net.sample(net.fullText[position], 200);		//seed sample with next character so we can make use of hPrev
+				
+				double loss = net.trainNet(position, 0.1);	//position, learningRate
+				smooth_loss = smooth_loss*0.999 + loss*0.001;
+				if(n%1000 == 0)
+					System.out.println(smooth_loss+"\n");
+				
+				position += rnn.attentionSpan;
+				n++;
 			}
 		} catch (LayerException e) {
 			System.out.println(e.getMessage());
